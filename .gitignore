@@ -1,0 +1,14 @@
+# Node
+node_modules/
+.expo/
+dist/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Windows
+.DS_Store
+Thumbs.db
