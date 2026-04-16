@@ -4,7 +4,8 @@ from pydantic import BaseModel
 from services.analyzer import analyzer
 from services.chatbot import bot  
 from sqlalchemy.orm import Session
-from database import SessionLocal, ScanResult, init_db, get_db
+from database import SessionLocal, ScanResult, init_db, get_db, ChatSession
+from services.detector import detector
 
 app = FastAPI(title="DermaAI Backend")
 
@@ -72,3 +73,29 @@ async def predict_skin_issue(
     except Exception as e:
         print(f"Analysis Error: {e}")
         raise HTTPException(status_code=500, detail="Image analysis failed.")
+    
+    
+@app.get("/history")
+def get_history(db: Session = Depends(get_db)):
+    # Fetch all sessions, ordered by newest first
+    sessions = db.query(ChatSession).order_by(ChatSession.created_at.desc()).all()
+    return sessions   
+
+@app.post("/analyze-skin")
+async def analyze_skin(file: UploadFile = File(...)):
+    # 1. Read the image
+    image_bytes = await file.read()
+
+    # 2. Run local CNN Detection (Fast, Pixel-level analysis)
+    detection = detector.predict(image_bytes)
+
+    # 3. Ask DermaBot for a South Asian-friendly topical recommendation
+    # We feed the detection result into the query to guide the AI
+    query = f"I have scanned my skin. The detector says it is {detection['label']}. What is your analysis and topical recommendation?"
+    ai_response = bot.ask(query)
+
+    return {
+        "status": "success",
+        "detection": detection,
+        "recommendation": ai_response
+    }

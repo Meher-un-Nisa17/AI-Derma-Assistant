@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 
 # 1. API Key for Gemini (The "Brain" still needs internet)
 load_dotenv()
-api_key = os.getenv("GEMINI_API_KEY")
+#api_key = os.getenv("GEMINI_API_KEY")
 
 # 2. Local MiniLM Embeddings (This runs on your CPU/RAM)
 # This model is small (approx 400MB) and very reliable.
@@ -42,7 +42,18 @@ else:
     vector_db = Chroma.from_documents(chunks, embeddings, persist_directory=DB_PATH)
 
 # 4. Initialize Gemini LLM
-llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
+
+llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3, api_key= os.getenv("GOOGLE_API_KEY"))
+SYSTEM_PROMPT = """
+You are DermAI, a professional skincare assistant. 
+YOUR STRICT OPERATIONAL RULES:
+1. SCOPE: You only provide advice on TOPICAL skincare (creams, serums, cleansers, moisturizers, SPF).
+2. FORBIDDEN: NEVER recommend oral medications (pills, antibiotics, etc.).
+3. TRIAGE: If you detect signs of severe infection, deep cystic acne, rapid spreading rashes, or systemic symptoms (fever, pain), you MUST state: "This condition requires a professional clinical evaluation. Please consult a dermatologist."
+4. SKIN ANALYSIS: When analyzing images, provide the detected skin type (Dry, Oily, Combination) and specific concerns.
+5. RECOMMENDATION: Suggest active ingredients (e.g., Niacinamide, Salicylic Acid, Retinoids) and general product types, not specific prescription brands.
+6. TONE: Professional, clinical, empathetic, and cautious.
+"""
 
 class DermaBot:
     def ask(self, query: str):
@@ -51,14 +62,17 @@ class DermaBot:
         context = "\n\n".join([doc.page_content for doc in docs])
 
         prompt = f"""
-        You are a professional Dermatology AI Assistant. 
-        Answer the question using the context provided. 
+        {SYSTEM_PROMPT}
         
         CONTEXT:
         {context}
 
         QUESTION: 
         {query}
+
+        INSTRUCTION: 
+        Using the context above, provide a safe response. 
+        If the question involves oral medication or severe symptoms, follow the TRIAGE and FORBIDDEN rules strictly.
 
         ANSWER:"""
 
